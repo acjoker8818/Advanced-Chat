@@ -325,9 +325,9 @@ util.create_tick_handler(function()
     local chatbox_y = chatbox_y_pos
     local max_chat_x = min_box_width - 0.005
     MP_TEXT_CHAT_DISABLE(true)
-    if IS_CONTROL_JUST_PRESSED(0, 245) then 
+    if IS_CONTROL_JUST_PRESSED(0, 245) and not menu.command_box_is_open() then 
         menu.show_command_box('chat ')
-    elseif IS_CONTROL_JUST_PRESSED(0, 246) then 
+    elseif IS_CONTROL_JUST_PRESSED(0, 246) and not menu.command_box_is_open() then 
         menu.show_command_box('teamchat ')
     end
     if menu.command_box_is_open() then 
