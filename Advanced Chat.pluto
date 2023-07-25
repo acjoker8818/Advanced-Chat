@@ -6,6 +6,7 @@ local my = menu.my_root()
 local player_is_muted = {}
 local all_chats = {}
 local message_cooldown = {}
+local Script = {Version = '0.2.0'}
 local chatbox_x_pos = 0.69
 local chatbox_y_pos = 0.50
 local chatbox_y_scale = 0.0
@@ -20,6 +21,18 @@ local wake_when_typing = true
 local show_typers = true
 local uwuify = false
 local last_messasge = os.time()
+local MessageDir = filesystem.resources_dir() .. 'Advanced Chat\\Messages\\'
+filesystem.mkdirs(MessageDir)
+
+
+local function save_message(filename, name, message)
+        Current_message = {
+        [name] = message
+    }
+    if not filesystem.is_regular_file(filename) then
+        util.write_colons_file(filename, Current_settings)
+    end
+end
 
 
 -- source code at https://github.com/cummodore69/uwuifier/blob/main/uwuifier/uwuifier.lua
@@ -93,7 +106,7 @@ local function PID(pid, root)
     end)
 end
 
-function cut_strings(t, length) --stackoverflow Egor Skriptunoff
+local function cut_strings(t, length) --stackoverflow Egor Skriptunoff
     local lines = {}
     local line
     t:gsub('(%s*)(%S+)', 
@@ -110,13 +123,84 @@ function cut_strings(t, length) --stackoverflow Egor Skriptunoff
     return lines
 end
 
+local function get_input_from_screen_keyboard(windowName, maxInput, defaultText)
+    DISPLAY_ONSCREEN_KEYBOARD(0, windowName, "", defaultText, "", "", "", maxInput);
+    while UPDATE_ONSCREEN_KEYBOARD() == 0 do
+        util.yield_once()
+    end
+    if UPDATE_ONSCREEN_KEYBOARD() == 1 then
+        return GET_ONSCREEN_KEYBOARD_RESULT()
+    end
+    return ""
+end
+function string.starts(String,Start) --hexarobi function
+    return string.sub(String,1,string.len(Start))==Start
+end
+function string.starts6(String,Start) --hexarobi function
+    return string.sub(String,6,string.len(Start))==Start
+end
+message_list_menus = {}
 
+local function regen_message_list(root)
+    for message_list_menus as message_list_menu do
+        if message_list_menu:isValid() then message_list_menu:delete() end
+    end
+    for filesystem.list_files(MessageDir) as name do
+        local _, dirname = string.match(name,  "(.-)([^\\/]-%.?)$")
+        dirname = dirname:gsub('.txt', '')
+        local message_list_menu = root:list(dirname, {}, dirname)
+        local settings = util.read_colons_and_tabs_file(name)
+        for i, v in settings do
+            message_list_menu:action(i, {i}, v, function()
+                menu.show_command_box('chat '..v)
+            end)        
+        end
+        table.insert(message_list_menus, message_list_menu)
+    end
+end
 
+local saved_root = my:list('Saved Messages', {}, 'Your Saved Messages')
 local color_root = my:list('Change the colors', {}, 'Change the colors of everything')
 local optional_color_root = color_root:list('Change the optional colors', {}, 'Change the colors of the chat names')
 local tag_root = my:list('Tags', {}, 'Change the tags next to a persons name')
 local set_root = my:list('Settings', {}, 'Change postion of the box among other things')
 
+
+saved_root:action('Save Message', {}, 'Save a message for use later', function ()
+    util.toast('Enter a name')
+    local name = ""
+    local label = 'Enter Message Name'
+    while name == "" do
+        name = get_input_from_screen_keyboard(label, 31, name or "")
+        if name == "" then
+            return util.toast('No name entered')
+        end
+        util.yield(250)
+    end
+    util.yield(1000)
+    local message = ""
+    local label1 = 'Enter Message'
+    while message == "" do
+        util.toast('Enter a message to be saved')
+        message = get_input_from_screen_keyboard(label1, 254, message or "")
+        if message == "" then
+            return util.toast('No text entered save canceled')
+        end
+        util.yield(250)
+    end
+    local current_message = {
+        [name] = message
+    }
+
+    if not filesystem.is_regular_file(MessageDir..name) then
+        util.write_colons_file(MessageDir..name..'.txt', current_message)
+    end
+
+end)
+
+Svmsglist = saved_root:list('Saved Messages', {}, 'A list of your saved messages', function ()
+    regen_message_list(Svmsglist)
+end)
 
 background = {r = 0, g = 0, b = 0, a = 0.7}
 color_root:colour('Background color', {'bgcolor'}, 'Change the color of the background', background, true, function(sel)
@@ -240,6 +324,14 @@ set_root:slider('Cooldown for Chat', {'cooldown'}, 'Change the amount of time in
     cooldown = v
 end)
 
+set_root:toggle('Turn on Chat box', {'showchatbox'}, 'Turn on the chat box and leave it on', function(on)
+    if on then 
+        alltime = true
+    else
+        alltime = false
+    end
+end)
+
 set_root:toggle('Turn off Show Typing', {'showtyping'}, 'Turn off showing when people are typing', function(on)
     show_typers = not on
 end)
@@ -251,6 +343,8 @@ end)
 set_root:toggle('UwU', {'uwuify'}, 'UwUify your messages', function(on)
     uwuify = on
 end)
+
+set_root:readonly('Version Number', tostring(Script.Version))
 
 set_root:hyperlink('Join the Discord', 'https://discord.gg/fn4uBbFNnA', 'Join the AcjokerScript Discord if you have any problems or want to suggest features')
 
@@ -309,14 +403,35 @@ end)
 
 local chatact = my:action('', {'chat'}, '', function()
 end, function(input)
-    chat.send_message(input, false, true, true)
+    if string.starts(input, '!') then
+        chat.send_message(input, false, true, true)
+        input = input:gsub('!', '')
+        menu.trigger_commands(input)
+    elseif string.starts6(input, '!spawn') then
+        chat.send_message(input, true, true, true)
+        input = input:gsub('!spawn', '')
+        menu.trigger_commands(input)
+    else
+       chat.send_message(input, true, true, true) 
+    end
 end)    
 menu.set_visible(chatact, false)
 
 local team_chat = my:action('', {'teamchat'}, '', function()
 end, function(input)
-    chat.send_message(input, true, true, true)
+    if string.starts(input, '!') then
+        chat.send_message(input, true, true, true)
+        input = input:gsub('!', '')
+        menu.trigger_commands(input)
+    elseif string.starts6(input, '!spawn') then
+        chat.send_message(input, true, true, true)
+        input = input:gsub('!spawn', '')
+        menu.trigger_commands(input)
+    else
+       chat.send_message(input, true, true, true) 
+    end
 end)    
+
 menu.set_visible(team_chat, false)
 
 util.create_tick_handler(function()
@@ -324,10 +439,11 @@ util.create_tick_handler(function()
     local chatbox_x = chatbox_x_pos
     local chatbox_y = chatbox_y_pos
     local max_chat_x = min_box_width - 0.005
-    MP_TEXT_CHAT_DISABLE(true)
-    if IS_CONTROL_JUST_PRESSED(0, 245) and not menu.command_box_is_open() then 
+    if util.is_key_down(0x54, '') and not menu.command_box_is_open() then
+        util.yield(10) 
         menu.show_command_box('chat ')
-    elseif IS_CONTROL_JUST_PRESSED(0, 246) and not menu.command_box_is_open() then 
+    elseif util.is_key_down(0x59, '') and not menu.command_box_is_open() then 
+        util.yield(10)
         menu.show_command_box('teamchat ')
     end
     if menu.command_box_is_open() then 
@@ -347,7 +463,7 @@ util.create_tick_handler(function()
     end
 
     if #all_chats > 0 then
-        if os.time() - last_messasge < showtime_secs or chatbox then
+        if os.time() - last_messasge < showtime_secs or chatbox or alltime then
             directx.draw_rect(chatbox_x, chatbox_y, min_box_width, chatbox_y_scale, background)
             local offset = 0.0
             for all_chats as v do
@@ -388,6 +504,9 @@ util.create_tick_handler(function()
             end
         end
     end
+end)
+util.create_tick_handler(function ()
+    MP_TEXT_CHAT_DISABLE(true)
 end)
 
 util.on_stop(function()
