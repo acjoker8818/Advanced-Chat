@@ -1,12 +1,11 @@
 --credits to lance this is rewritten from chitchat to be improved upon by acjoker8818
-util.keep_running()
 util.ensure_package_is_installed('natives-1681379138')
 util.require_natives('natives-1681379138.g')
 local my = menu.my_root()
 local player_is_muted = {}
 local all_chats = {}
 local message_cooldown = {}
-local Script = {Version = '0.2.0'}
+local Script = {Version = '0.2.1'}
 local chatbox_x_pos = 0.69
 local chatbox_y_pos = 0.50
 local chatbox_y_scale = 0.0
@@ -20,19 +19,23 @@ local cooldown = 2000
 local wake_when_typing = true
 local show_typers = true
 local uwuify = false
+local timestamp = false
 local last_messasge = os.time()
-local MessageDir = filesystem.resources_dir() .. 'Advanced Chat\\Messages\\'
-filesystem.mkdirs(MessageDir)
-
-
-local function save_message(filename, name, message)
-        Current_message = {
-        [name] = message
-    }
-    if not filesystem.is_regular_file(filename) then
-        util.write_colons_file(filename, Current_settings)
+local MessageDirMove = filesystem.resources_dir() .. 'Advanced Chat\\Messages\\'
+local MessageDir = filesystem.store_dir() .. 'Advanced Chat\\Messages\\'
+if filesystem.is_dir(MessageDirMove) then
+    filesystem.mkdirs(MessageDir)
+    for filesystem.list_files(MessageDirMove) as message do
+        local _, dirname = string.match(message,  "(.-)([^\\/]-%.?)$")
+        os.rename(message, MessageDir..dirname)
     end
+    os.remove(filesystem.resources_dir() .. 'Advanced Chat\\Messages\\')
+    os.remove(filesystem.resources_dir() .. 'Advanced Chat\\')
+else
+    filesystem.mkdirs(MessageDir)
 end
+
+
 
 
 -- source code at https://github.com/cummodore69/uwuifier/blob/main/uwuifier/uwuifier.lua
@@ -84,14 +87,14 @@ local function pid_to_handle(pid)
     return handle_ptr
 end
 
-local function chat_message(pid, name, color, tag, text)
+local function chat_message(pid, name, color, tag, time, text)
     return {
         pid = pid,
         name = name,
         color = color,
         tag = tag,
         text = text,
-        time = os.time()
+        time = os.date('%m-%d-%Y %H:%M:%S')
     }
 end
 
@@ -124,7 +127,7 @@ local function cut_strings(t, length) --stackoverflow Egor Skriptunoff
 end
 
 local function get_input_from_screen_keyboard(windowName, maxInput, defaultText)
-    DISPLAY_ONSCREEN_KEYBOARD(0, windowName, "", defaultText, "", "", "", maxInput);
+    DISPLAY_ONSCREEN_KEYBOARD(0, util.register_label(windowName), "", defaultText, "", "", "", maxInput);
     while UPDATE_ONSCREEN_KEYBOARD() == 0 do
         util.yield_once()
     end
@@ -167,7 +170,6 @@ local set_root = my:list('Settings', {}, 'Change postion of the box among other 
 
 
 saved_root:action('Save Message', {}, 'Save a message for use later', function ()
-    util.toast('Enter a name')
     local name = ""
     local label = 'Enter Message Name'
     while name == "" do
@@ -181,7 +183,6 @@ saved_root:action('Save Message', {}, 'Save a message for use later', function (
     local message = ""
     local label1 = 'Enter Message'
     while message == "" do
-        util.toast('Enter a message to be saved')
         message = get_input_from_screen_keyboard(label1, 254, message or "")
         if message == "" then
             return util.toast('No text entered save canceled')
@@ -332,6 +333,22 @@ set_root:toggle('Turn on Chat box', {'showchatbox'}, 'Turn on the chat box and l
     end
 end)
 
+set_root:toggle('Turn on Timestamp', {''}, 'Turn on timestamp with messages', function(on)
+    if on then 
+        timestamp = true
+    else
+        timestamp = false
+    end
+end)
+
+set_root:toggle('Turn on Alt Key', {''}, 'Use Z button for teamchat instead of Y', function(on)
+    if on then 
+        altkey = true
+    else
+        altkey = false
+    end
+end)
+
 set_root:toggle('Turn off Show Typing', {'showtyping'}, 'Turn off showing when people are typing', function(on)
     show_typers = not on
 end)
@@ -386,7 +403,7 @@ chat.on_message(function (sender, reserved, text, team_chat, networked, is_auto)
         text = uwu(text)
     end
 
-    all_chats[#all_chats+1] = chat_message(sender, players.get_name(sender), color, tag, text:sub(1, 254))
+    all_chats[#all_chats+1] = chat_message(sender, players.get_name(sender), color, tag, time, text:sub(1, 254))
     last_messasge = os.time()
     message_cooldown[sender] = true 
     util.yield(cooldown)
@@ -408,11 +425,11 @@ end, function(input)
         input = input:gsub('!', '')
         menu.trigger_commands(input)
     elseif string.starts6(input, '!spawn') then
-        chat.send_message(input, true, true, true)
+        chat.send_message(input, false, true, true)
         input = input:gsub('!spawn', '')
         menu.trigger_commands(input)
     else
-       chat.send_message(input, true, true, true) 
+       chat.send_message(input, false, true, true) 
     end
 end)    
 menu.set_visible(chatact, false)
@@ -442,7 +459,10 @@ util.create_tick_handler(function()
     if util.is_key_down(0x54, '') and not menu.command_box_is_open() then
         util.yield(10) 
         menu.show_command_box('chat ')
-    elseif util.is_key_down(0x59, '') and not menu.command_box_is_open() then 
+    elseif util.is_key_down(0x59, '') and not menu.command_box_is_open() and not altkey then 
+        util.yield(10)
+        menu.show_command_box('teamchat ')
+    elseif util.is_key_down(0x5A, '') and not menu.command_box_is_open() and altkey then 
         util.yield(10)
         menu.show_command_box('teamchat ')
     end
@@ -467,7 +487,12 @@ util.create_tick_handler(function()
             directx.draw_rect(chatbox_x, chatbox_y, min_box_width, chatbox_y_scale, background)
             local offset = 0.0
             for all_chats as v do
-                local text = ': '..v.text:gsub('\n', '')
+                local text
+                if timestamp then 
+                    text = v.time..': '..v.text:gsub('\n', '')
+                else
+                    text = ': '..v.text:gsub('\n', '')
+                end
                 local tag = ' ['..v.tag..']'
                 local name =  ''..v.name
                 local name_x, name_y = directx.get_text_size(name, letter_scale)
