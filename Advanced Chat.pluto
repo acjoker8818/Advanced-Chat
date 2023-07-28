@@ -5,7 +5,7 @@ local my = menu.my_root()
 local player_is_muted = {}
 local all_chats = {}
 local message_cooldown = {}
-local Script = {Version = '0.2.1'}
+local Script = {Version = '0.2.2'}
 local chatbox_x_pos = 0.69
 local chatbox_y_pos = 0.50
 local chatbox_y_scale = 0.0
@@ -456,13 +456,13 @@ util.create_tick_handler(function()
     local chatbox_x = chatbox_x_pos
     local chatbox_y = chatbox_y_pos
     local max_chat_x = min_box_width - 0.005
-    if util.is_key_down(0x54, '') and not menu.command_box_is_open() then
+    if util.is_key_down(0x54, '') and not menu.command_box_is_open() and not IS_SYSTEM_UI_BEING_DISPLAYED() then
         util.yield(10) 
         menu.show_command_box('chat ')
-    elseif util.is_key_down(0x59, '') and not menu.command_box_is_open() and not altkey then 
+    elseif util.is_key_down(0x59, '') and not menu.command_box_is_open() and not altkey and not IS_SYSTEM_UI_BEING_DISPLAYED() then 
         util.yield(10)
         menu.show_command_box('teamchat ')
-    elseif util.is_key_down(0x5A, '') and not menu.command_box_is_open() and altkey then 
+    elseif util.is_key_down(0x5A, '') and not menu.command_box_is_open() and altkey and not IS_SYSTEM_UI_BEING_DISPLAYED() then 
         util.yield(10)
         menu.show_command_box('teamchat ')
     end
