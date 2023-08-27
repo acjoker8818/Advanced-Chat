@@ -461,13 +461,13 @@ util.create_tick_handler(function()
     local chatbox_x = chatbox_x_pos
     local chatbox_y = chatbox_y_pos
     local max_chat_x = min_box_width - 0.005
-    if util.is_key_down(0x54, '') and not menu.command_box_is_open() and not IS_SYSTEM_UI_BEING_DISPLAYED() and not is_phone_open() then
+    if IS_CONTROL_JUST_RELEASED(0, 245) and not menu.command_box_is_open() and not IS_SYSTEM_UI_BEING_DISPLAYED() and not is_phone_open() then
         util.yield(10) 
         menu.show_command_box('chat ')
-    elseif util.is_key_down(0x59, '') and not menu.command_box_is_open() and not altkey and not IS_SYSTEM_UI_BEING_DISPLAYED() and not is_phone_open() then 
+    elseif IS_CONTROL_JUST_RELEASED(0, 246) and not menu.command_box_is_open() and not altkey and not IS_SYSTEM_UI_BEING_DISPLAYED() and not is_phone_open() then 
         util.yield(10)
         menu.show_command_box('teamchat ')
-    elseif util.is_key_down(0x5A, '') and not menu.command_box_is_open() and altkey and not IS_SYSTEM_UI_BEING_DISPLAYED() and not is_phone_open() then 
+    elseif IS_CONTROL_JUST_RELEASED(0, 20) and not menu.command_box_is_open() and altkey and not IS_SYSTEM_UI_BEING_DISPLAYED() and not is_phone_open() then 
         util.yield(10)
         menu.show_command_box('teamchat ')
     end
