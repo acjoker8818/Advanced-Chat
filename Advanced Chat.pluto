@@ -5,7 +5,7 @@ local my = menu.my_root()
 local player_is_muted = {}
 local all_chats = {}
 local message_cooldown = {}
-local Script = {Version = '0.2.3'}
+local Script = {Version = '0.2.4'}
 local chatbox_x_pos = 0.69
 local chatbox_y_pos = 0.50
 local chatbox_y_scale = 0.0
